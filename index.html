@@ -1,0 +1,430 @@
+<!doctype html><html lang="nb"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#17406d"><title>GRUVE Frakt</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f3f2ee; --surface:#ffffff; --fg:#1b1d22; --muted:#6a6e78; --line:#d9d7d0;
+  --accent:#17406d; --accent-fg:#ffffff; --soft:#e7edf5;
+  --ok:#1f7a4d; --warn:#9a6400; --bad:#b4342a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15171b; --surface:#1e2127; --fg:#e8e8e4; --muted:#9a9ea8; --line:#343841;
+  --accent:#7fb0e6; --accent-fg:#0d1b2b; --soft:#232c38; --ok:#5fcf93; --warn:#e2b04a; --bad:#ef7a70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15171b; --surface:#1e2127; --fg:#e8e8e4; --muted:#9a9ea8; --line:#343841;
+  --accent:#7fb0e6; --accent-fg:#0d1b2b; --soft:#232c38; --ok:#5fcf93; --warn:#e2b04a; --bad:#ef7a70; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:17px;letter-spacing:.02em}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:14px;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:baseline;gap:8px}
+.brand small{font-family:var(--mono);color:var(--muted);font-size:12px}
+.tabs{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+.tabs button{background:none;border:0;padding:6px 10px;border-radius:6px;cursor:pointer;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--soft);color:var(--fg)}
+.wrap{max-width:1080px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
+.stack{display:grid;gap:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.grid4{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+label.f input,label.f select,label.f textarea{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);width:100%;min-width:0}
+label.f input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{padding:8px 14px;border:1px solid var(--line);border-radius:6px;background:var(--surface);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.small{padding:4px 10px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl{overflow-x:auto}
+.mono{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:500;background:var(--soft)}
+.pill.draft{background:var(--soft)} .pill.booked{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.pill.in_transit{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.pill.delivered{background:color-mix(in srgb,var(--ok) 28%,transparent);color:var(--ok)}
+.pill.failed{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.note{font-size:13px;color:var(--muted)}
+.alert{padding:10px 12px;border-radius:6px;border:1px solid var(--line);background:var(--soft);font-size:14px}
+.alert.bad{border-color:var(--bad);color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+.alert.ok{border-color:var(--ok);color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,transparent)}
+.kpi{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.kpi div{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--surface)}
+.kpi b{display:block;font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.login{max-width:380px;margin:60px auto}
+.pkg{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));align-items:end}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:20}
+pre{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:10px;border-radius:6px;margin:0;max-height:260px;overflow:auto}
+@media (prefers-reduced-motion:no-preference){.toast{animation:up .2s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}}
+</style>
+
+</head><body><div class="bar"><div class="bar-in">
+  <div class="brand"><h1>GRUVE Frakt</h1><small>Noraq AS · Leines</small></div>
+  <nav class="tabs" id="tabs" hidden>
+    <button data-v="sendinger" aria-selected="true">Sendinger</button>
+    <button data-v="ny">Ny sending</button>
+    <button data-v="adresser">Adressebok</button>
+    <button data-v="innstillinger">Innstillinger</button>
+    <button id="logout">Logg ut</button>
+  </nav>
+</div></div>
+
+<div class="wrap">
+
+<section id="v-login" class="login panel stack">
+  <h2>Logg inn</h2>
+  <p class="note" style="margin:0">Kun for Noraq og ansatte på Leines. Brukere opprettes av Fredrik.</p>
+  <form id="loginForm" class="stack">
+    <label class="f">E-post<input id="l_email" type="email" autocomplete="username" required></label>
+    <label class="f">Passord<input id="l_pw" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary" type="submit">Logg inn</button>
+    <div id="l_msg"></div>
+  </form>
+</section>
+
+<section id="v-sendinger" class="stack" hidden>
+  <div class="kpi" id="kpi"></div>
+  <div class="panel stack">
+    <div class="row"><h2>Alle sendinger</h2><span class="note" id="cnt"></span><button class="btn small" id="refresh" style="margin-left:auto">Oppdater</button></div>
+    <div class="tbl"><table><thead><tr><th>Dato</th><th>Status</th><th>Til</th><th>Kolli</th><th>Ref.</th><th>Sporingsnr.</th><th>Pris</th><th></th></tr></thead><tbody id="shipRows"></tbody></table></div>
+  </div>
+  <div class="panel stack" id="detail" hidden></div>
+</section>
+
+<section id="v-ny" class="stack" hidden>
+  <form id="shipForm" class="panel stack">
+    <h2>Ny sending</h2>
+    <div class="grid2">
+      <label class="f">Avsender<select id="s_sender" required></select></label>
+      <label class="f">Mottaker<select id="s_recipient" required></select></label>
+      <label class="f">Referanse (arbeidsordre / TransmitX)<input id="s_ref" placeholder="f.eks. TX-2026-014"></label>
+      <label class="f">Serienumre (komma-separert)<input id="s_serials" placeholder="S21-… , S21-…"></label>
+      <label class="f">Sendedato<input id="s_date" type="date"></label>
+    </div>
+    <div class="stack">
+      <div class="row"><h2>Kolli</h2><button type="button" class="btn small" id="addPkg">+ Kolli</button></div>
+      <div id="pkgs" class="stack"></div>
+    </div>
+    <div class="stack" id="customsBox">
+      <h2>Toll (utenfor Norge)</h2>
+      <div class="grid2">
+        <label class="f">Innhold<input id="c_contents" value="ASIC bitcoin miner (brukt, til reparasjon/retur)"></label>
+        <label class="f">Verdi per enhet (NOK)<input id="c_value" type="number" min="0" step="1" placeholder="f.eks. 25000"></label>
+        <label class="f">Varekode (HS)<input id="c_hs" value="8471.50"></label>
+        <label class="f">Årsak<select id="c_reason"><option value="return_for_repair">Retur for reparasjon</option><option value="sale">Salg</option><option value="gift">Gave</option><option value="other">Annet</option></select></label>
+        <label class="f">Fakturanr.<input id="c_inv" placeholder="valgfritt"></label>
+      </div>
+      <p class="note" style="margin:0">Eksport fra Norge krever verdi og varekode. Mottakers EORI legges inn i adresseboken.</p>
+    </div>
+    <div class="row">
+      <button type="button" class="btn" id="saveDraft">Lagre utkast</button>
+      <button type="button" class="btn" id="getPrice">Hent pris og transittid</button>
+      <button type="submit" class="btn primary" id="bookBtn">Book hos Bring</button>
+      <span class="note" id="testFlag"></span>
+    </div>
+    <div id="priceOut"></div>
+    <div id="formMsg"></div>
+  </form>
+</section>
+
+<section id="v-adresser" class="stack" hidden>
+  <div class="panel stack">
+    <h2>Adressebok</h2>
+    <div class="tbl"><table><thead><tr><th>Navn</th><th>Type</th><th>Adresse</th><th>Kontakt</th><th>EORI</th><th></th></tr></thead><tbody id="addrRows"></tbody></table></div>
+  </div>
+  <form id="addrForm" class="panel stack">
+    <h2 id="addrTitle">Ny adresse</h2>
+    <input type="hidden" id="a_id">
+    <div class="grid2">
+      <label class="f">Kortnavn<input id="a_label" required placeholder="f.eks. Verksted Bardufoss"></label>
+      <label class="f">Type<select id="a_kind"><option value="recipient">Mottaker</option><option value="sender">Avsender</option></select></label>
+      <label class="f">Firma / navn<input id="a_name" required></label>
+      <label class="f">Kontaktperson<input id="a_contact"></label>
+      <label class="f">Telefon<input id="a_phone" placeholder="+47 …"></label>
+      <label class="f">E-post<input id="a_email" type="email"></label>
+      <label class="f">Gateadresse<input id="a_line" required></label>
+      <label class="f">Postnr.<input id="a_zip" required></label>
+      <label class="f">Sted<input id="a_city" required></label>
+      <label class="f">Land (ISO-2)<input id="a_cc" required maxlength="2" value="NO" style="text-transform:uppercase"></label>
+      <label class="f">EORI (mottaker utenfor NO)<input id="a_eori" placeholder="DE…"></label>
+    </div>
+    <div class="row"><button class="btn primary" type="submit">Lagre</button><button class="btn" type="button" id="addrReset">Tøm</button></div>
+    <div id="addrMsg"></div>
+  </form>
+</section>
+
+<section id="v-innstillinger" class="stack" hidden>
+  <div class="panel stack">
+    <h2>Mybring-kobling</h2>
+    <div id="apiStatus" class="note">Sjekker …</div>
+    <p class="note" style="margin:0">API-nøkkelen ligger som secret i Supabase-prosjektet GRUVE (Edge Functions → Secrets): <span class="mono">MYBRING_UID</span>, <span class="mono">MYBRING_KEY</span>, <span class="mono">MYBRING_CUSTOMER_NO</span>, <span class="mono">MYBRING_CLIENT_URL</span>. Sett <span class="mono">MYBRING_TEST=false</span> for ekte booking.</p>
+    <button class="btn small" id="recheck" style="justify-self:start">Sjekk på nytt</button>
+  </div>
+  <form id="pwForm" class="panel stack">
+    <h2>Bytt passord</h2>
+    <label class="f" style="max-width:320px">Nytt passord<input id="p_new" type="password" minlength="8" autocomplete="new-password" required></label>
+    <button class="btn" type="submit" style="justify-self:start">Oppdater passord</button>
+    <div id="pwMsg"></div>
+  </form>
+  <div class="panel stack">
+    <h2>Fakturagrunnlag</h2>
+    <p class="note" style="margin:0">Eksporter bookede sendinger per måned som CSV-tekst (kopier inn i PowerOffice / Excel).</p>
+    <div class="row"><input type="month" id="exp_month" class="btn"><button class="btn" id="exportCsv" type="button">Lag CSV</button><button class="btn small" id="copyCsv" type="button" hidden>Kopier</button></div>
+    <pre id="csvOut" hidden></pre>
+  </div>
+</section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
+<script>
+const SUPA_URL="https://tcuefkqomitykaknoyyn.supabase.co";
+const SUPA_KEY="sb_publishable_WQU2jS0hAiEZR3hwoIL7mQ_E-FPMdkn";
+const FN=SUPA_URL+"/functions/v1/mybring-proxy";
+const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+const $=id=>document.getElementById(id);
+let addresses=[],shipments=[],editingShipment=null;
+
+const nok=n=>n==null?"–":new Intl.NumberFormat("nb-NO",{style:"currency",currency:"NOK",maximumFractionDigits:0}).format(n);
+const dt=s=>s?new Date(s).toLocaleDateString("nb-NO",{day:"2-digit",month:"2-digit",year:"2-digit"}):"";
+const statusNo={draft:"Utkast",booked:"Booket",in_transit:"Underveis",delivered:"Levert",failed:"Feilet"};
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function msg(el,text,kind){el.innerHTML=text?`<div class="alert ${kind||""}">${text}</div>`:""}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+async function session(){const {data}=await sb.auth.getSession();return data.session}
+async function callFn(payload){
+  const s=await session(); if(!s) throw new Error("Ikke innlogget");
+  const r=await fetch(FN,{method:"POST",headers:{"Content-Type":"application/json",apikey:SUPA_KEY,Authorization:"Bearer "+s.access_token},body:JSON.stringify(payload)});
+  const j=await r.json().catch(()=>({error:"Ugyldig svar fra proxy"}));
+  if(!r.ok) throw new Error(j.error||(j.consignments?.[0]?.errors?.map(e=>e.message).join("; "))||("HTTP "+r.status));
+  return j;
+}
+$("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault(); msg($("l_msg"),"");
+  const {error}=await sb.auth.signInWithPassword({email:$("l_email").value.trim(),password:$("l_pw").value});
+  if(error){msg($("l_msg"),"Feil e-post eller passord.","bad");return}
+  boot();
+});
+$("logout").addEventListener("click",async()=>{await sb.auth.signOut();location.reload()});
+$("pwForm").addEventListener("submit",async e=>{
+  e.preventDefault();const {error}=await sb.auth.updateUser({password:$("p_new").value});
+  msg($("pwMsg"),error?"Kunne ikke oppdatere: "+esc(error.message):"Passord oppdatert.",error?"bad":"ok");
+});
+
+function show(v){
+  for(const s of document.querySelectorAll("section[id^='v-']")) s.hidden=s.id!=="v-"+v;
+  for(const b of document.querySelectorAll("#tabs button[data-v]")) b.setAttribute("aria-selected",b.dataset.v===v);
+  if(["sendinger","ny","adresser","innstillinger"].includes(v)) location.hash=v;
+}
+document.querySelectorAll("#tabs button[data-v]").forEach(b=>b.addEventListener("click",()=>show(b.dataset.v)));
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if($("v-"+v)&&v!=="login")show(v)});
+
+async function boot(){
+  const s=await session();
+  if(!s){show("login");$("tabs").hidden=true;return}
+  $("tabs").hidden=false;
+  await Promise.all([loadAddresses(),loadShipments()]);
+  const v=location.hash.slice(1);
+  show($("v-"+v)&&v!=="login"?v:"sendinger");
+  checkApi();
+}
+
+async function loadAddresses(){
+  const {data,error}=await sb.from("addresses").select("*").order("kind").order("label");
+  if(error){toast("Kunne ikke hente adresser");return}
+  addresses=data||[];
+  $("addrRows").innerHTML=addresses.map(a=>`<tr>
+    <td><b>${esc(a.label)}</b><br><span class="note">${esc(a.name)}</span></td>
+    <td>${a.kind==="sender"?"Avsender":"Mottaker"}</td>
+    <td>${esc(a.address_line)}<br>${esc(a.postal_code)} ${esc(a.city)}, ${esc(a.country_code)}</td>
+    <td>${esc(a.contact||"")}<br><span class="note">${esc(a.phone||"")} ${esc(a.email||"")}</span></td>
+    <td class="mono">${esc(a.eori||"")}</td>
+    <td><button class="btn small" data-edit="${a.id}">Rediger</button></td></tr>`).join("")||`<tr><td colspan="6" class="note">Ingen adresser ennå.</td></tr>`;
+  const opt=k=>addresses.filter(a=>a.kind===k).map(a=>`<option value="${a.id}">${esc(a.label)} – ${esc(a.city)} (${esc(a.country_code)})</option>`).join("");
+  $("s_sender").innerHTML=opt("sender"); $("s_recipient").innerHTML=opt("recipient");
+  $("addrRows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>fillAddr(addresses.find(a=>a.id===b.dataset.edit))));
+}
+function fillAddr(a){
+  $("addrTitle").textContent=a?"Rediger adresse":"Ny adresse";
+  $("a_id").value=a?.id||"";$("a_label").value=a?.label||"";$("a_kind").value=a?.kind||"recipient";$("a_name").value=a?.name||"";
+  $("a_contact").value=a?.contact||"";$("a_phone").value=a?.phone||"";$("a_email").value=a?.email||"";$("a_line").value=a?.address_line||"";
+  $("a_zip").value=a?.postal_code||"";$("a_city").value=a?.city||"";$("a_cc").value=a?.country_code||"NO";$("a_eori").value=a?.eori||"";
+  if(a) $("addrForm").scrollIntoView({behavior:"smooth"});
+}
+$("addrReset").addEventListener("click",()=>fillAddr(null));
+$("addrForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const rec={label:$("a_label").value.trim(),kind:$("a_kind").value,name:$("a_name").value.trim(),contact:$("a_contact").value.trim()||null,
+    phone:$("a_phone").value.trim()||null,email:$("a_email").value.trim()||null,address_line:$("a_line").value.trim(),postal_code:$("a_zip").value.trim(),
+    city:$("a_city").value.trim(),country_code:$("a_cc").value.trim().toUpperCase(),eori:$("a_eori").value.trim()||null};
+  const id=$("a_id").value;
+  const {error}=id?await sb.from("addresses").update(rec).eq("id",id):await sb.from("addresses").insert(rec);
+  if(error){msg($("addrMsg"),"Kunne ikke lagre: "+esc(error.message),"bad");return}
+  msg($("addrMsg"),"Lagret.","ok");fillAddr(null);loadAddresses();
+});
+
+async function loadShipments(){
+  const {data,error}=await sb.from("shipments").select("*, sender:sender_id(*), recipient:recipient_id(*)").order("created_at",{ascending:false});
+  if(error){toast("Kunne ikke hente sendinger");return}
+  shipments=data||[];
+  const c=k=>shipments.filter(s=>s.status===k).length;
+  const month=shipments.filter(s=>s.booked_at&&new Date(s.booked_at).getMonth()===new Date().getMonth());
+  $("kpi").innerHTML=`<div><b>${c("draft")}</b><span>Utkast</span></div><div><b>${c("booked")+c("in_transit")}</b><span>Underveis</span></div>
+    <div><b>${month.length}</b><span>Booket denne mnd.</span></div><div><b>${nok(month.reduce((a,s)=>a+(+s.price_nok||0),0))}</b><span>Frakt denne mnd.</span></div>`;
+  $("cnt").textContent=shipments.length+" stk";
+  $("shipRows").innerHTML=shipments.map(s=>`<tr>
+    <td class="mono">${dt(s.booked_at||s.created_at)}</td>
+    <td><span class="pill ${s.status}">${statusNo[s.status]||s.status}</span></td>
+    <td><b>${esc(s.recipient?.label||"")}</b><br><span class="note">${esc(s.recipient?.city||"")}, ${esc(s.recipient?.country_code||"")}</span></td>
+    <td>${(s.packages||[]).length} × ${(s.packages||[]).map(p=>p.weight_kg+" kg").join(", ")}</td>
+    <td class="mono">${esc(s.customer_ref||"")}</td>
+    <td class="mono">${s.mybring_consignment_no?`<a href="https://sporing.bring.no/sporing/${esc(s.mybring_consignment_no)}" target="_blank" rel="noopener">${esc(s.mybring_consignment_no)}</a>`:"–"}</td>
+    <td class="mono">${nok(s.price_nok)}</td>
+    <td><button class="btn small" data-open="${s.id}">Åpne</button></td></tr>`).join("")||`<tr><td colspan="8" class="note">Ingen sendinger ennå.</td></tr>`;
+  $("shipRows").querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openShipment(b.dataset.open)));
+}
+$("refresh").addEventListener("click",loadShipments);
+
+async function openShipment(id){
+  const s=shipments.find(x=>x.id===id); if(!s) return;
+  const d=$("detail"); d.hidden=false;
+  d.innerHTML=`<div class="row"><h2>Sending</h2><span class="pill ${s.status}">${statusNo[s.status]}</span><button class="btn small" id="closeD" style="margin-left:auto">Lukk</button></div>
+    <div class="grid2">
+      <div><div class="note">Fra</div><b>${esc(s.sender?.name)}</b><br>${esc(s.sender?.address_line)}, ${esc(s.sender?.postal_code)} ${esc(s.sender?.city)}</div>
+      <div><div class="note">Til</div><b>${esc(s.recipient?.name)}</b><br>${esc(s.recipient?.address_line)}, ${esc(s.recipient?.postal_code)} ${esc(s.recipient?.city)}, ${esc(s.recipient?.country_code)}</div>
+      <div><div class="note">Kolli</div>${(s.packages||[]).map(p=>`${p.weight_kg} kg · ${p.length_cm}×${p.width_cm}×${p.height_cm} cm`).join("<br>")}</div>
+      <div><div class="note">Toll</div>${s.customs?`${esc(s.customs.contents)}<br>HS ${esc(s.customs.hs_code||"")} · ${s.customs.value_nok?nok(s.customs.value_nok):"verdi mangler"}`:"–"}</div>
+      <div><div class="note">Serienr.</div><span class="mono">${esc((s.miner_serials||[]).join(", ")||"–")}</span></div>
+      <div><div class="note">Sporing</div>${s.mybring_consignment_no?`<a class="mono" href="https://sporing.bring.no/sporing/${esc(s.mybring_consignment_no)}" target="_blank" rel="noopener">${esc(s.mybring_consignment_no)}</a>`:"–"}
+        ${s.label_url?` · <a href="${esc(s.label_url)}" target="_blank" rel="noopener">Etikett (PDF)</a>`:""}</div>
+    </div>
+    <div class="row">
+      ${s.status==="draft"?`<button class="btn primary" id="editD">Rediger / book</button><button class="btn" id="delD">Slett utkast</button>`:""}
+      ${s.mybring_consignment_no?`<button class="btn" id="trackD">Hent sporingsstatus</button>`:""}
+    </div><div id="dMsg"></div><div id="trackOut"></div>`;
+  $("closeD").onclick=()=>{d.hidden=true};
+  if($("editD")) $("editD").onclick=()=>{fillShipmentForm(s);show("ny")};
+  if($("delD")) $("delD").onclick=async()=>{ if($("delD").dataset.sure!=="1"){$("delD").dataset.sure="1";$("delD").textContent="Trykk igjen for å slette";return}
+    await sb.from("shipments").delete().eq("id",s.id); d.hidden=true; loadShipments(); toast("Utkast slettet")};
+  if($("trackD")) $("trackD").onclick=async()=>{
+    msg($("dMsg"),"Henter …");
+    try{const r=await callFn({action:"track",q:s.mybring_consignment_no});
+      const ev=r.consignmentSet?.[0]?.packageSet?.[0]?.eventSet||[];
+      $("trackOut").innerHTML=ev.length?`<div class="tbl"><table><thead><tr><th>Tid</th><th>Sted</th><th>Hendelse</th></tr></thead><tbody>${ev.map(e=>`<tr><td class="mono">${esc(e.displayDate||"")} ${esc(e.displayTime||"")}</td><td>${esc(e.city||"")}</td><td>${esc(e.description||e.status||"")}</td></tr>`).join("")}</tbody></table></div>`:`<pre>${esc(JSON.stringify(r,null,2))}</pre>`;
+      const st=ev[0]?.status||""; const map={DELIVERED:"delivered",IN_TRANSIT:"in_transit",TRANSPORT_TO_RECIPIENT:"in_transit",COLLECTED:"in_transit"};
+      if(map[st]&&map[st]!==s.status){await sb.from("shipments").update({status:map[st],updated_at:new Date().toISOString()}).eq("id",s.id);loadShipments()}
+      msg($("dMsg"),"");
+    }catch(e){msg($("dMsg"),esc(e.message),"bad")}
+  };
+  d.scrollIntoView({behavior:"smooth"});
+}
+
+function pkgRow(p={}){
+  const div=document.createElement("div");div.className="pkg";
+  div.innerHTML=`<label class="f">Vekt kg<input type="number" step="0.1" min="0.1" class="w" value="${p.weight_kg??17}" required></label>
+    <label class="f">L cm<input type="number" min="1" class="l" value="${p.length_cm??50}" required></label>
+    <label class="f">B cm<input type="number" min="1" class="b" value="${p.width_cm??35}" required></label>
+    <label class="f">H cm<input type="number" min="1" class="h" value="${p.height_cm??40}" required></label>
+    <label class="f">Innhold<input class="d" value="${esc(p.description||"ASIC bitcoin miner")}"></label>
+    <button type="button" class="btn small rm">Fjern</button>`;
+  div.querySelector(".rm").onclick=()=>{if($("pkgs").children.length>1)div.remove()};
+  $("pkgs").appendChild(div);
+}
+$("addPkg").addEventListener("click",()=>pkgRow());
+function readPkgs(){return [...$("pkgs").children].map(d=>({weight_kg:+d.querySelector(".w").value,length_cm:+d.querySelector(".l").value,width_cm:+d.querySelector(".b").value,height_cm:+d.querySelector(".h").value,description:d.querySelector(".d").value}))}
+function readForm(){
+  const sender=addresses.find(a=>a.id===$("s_sender").value), recipient=addresses.find(a=>a.id===$("s_recipient").value);
+  const intl=recipient&&recipient.country_code!=="NO";
+  return {sender,recipient,intl,packages:readPkgs(),customer_ref:$("s_ref").value.trim()||null,
+    miner_serials:$("s_serials").value.split(",").map(s=>s.trim()).filter(Boolean),
+    shipping_date:$("s_date").value||null,
+    customs:intl?{contents:$("c_contents").value.trim(),value_nok:+$("c_value").value||null,hs_code:$("c_hs").value.trim(),reason:$("c_reason").value,invoice_no:$("c_inv").value.trim()||null}:null};
+}
+function fillShipmentForm(s){
+  editingShipment=s?.id||null;
+  $("s_sender").value=s?.sender_id||$("s_sender").value; $("s_recipient").value=s?.recipient_id||$("s_recipient").value;
+  $("s_ref").value=s?.customer_ref||""; $("s_serials").value=(s?.miner_serials||[]).join(", "); $("s_date").value="";
+  $("pkgs").innerHTML=""; (s?.packages?.length?s.packages:[{}]).forEach(pkgRow);
+  if(s?.customs){$("c_contents").value=s.customs.contents||"";$("c_value").value=s.customs.value_nok||"";$("c_hs").value=s.customs.hs_code||"8471.50";$("c_reason").value=s.customs.reason||"return_for_repair";$("c_inv").value=s.customs.invoice_no||""}
+  toggleCustoms(); msg($("formMsg"),""); $("priceOut").innerHTML="";
+}
+function toggleCustoms(){const r=addresses.find(a=>a.id===$("s_recipient").value);$("customsBox").hidden=!(r&&r.country_code!=="NO")}
+$("s_recipient").addEventListener("change",toggleCustoms);
+
+async function saveDraft(status="draft",extra={}){
+  const f=readForm();
+  const rec={status,sender_id:f.sender?.id,recipient_id:f.recipient?.id,service:f.intl?"parcel_business_international":"parcel_business",
+    packages:f.packages,customs:f.customs,customer_ref:f.customer_ref,miner_serials:f.miner_serials,updated_at:new Date().toISOString(),...extra};
+  const q=editingShipment?sb.from("shipments").update(rec).eq("id",editingShipment).select().single():sb.from("shipments").insert(rec).select().single();
+  const {data,error}=await q; if(error) throw new Error(error.message);
+  editingShipment=data.id; return data;
+}
+$("saveDraft").addEventListener("click",async()=>{try{await saveDraft();toast("Utkast lagret");loadShipments()}catch(e){msg($("formMsg"),esc(e.message),"bad")}});
+
+$("getPrice").addEventListener("click",async()=>{
+  const f=readForm(); msg($("formMsg"),""); $("priceOut").innerHTML=`<div class="note">Henter pris fra Bring …</div>`;
+  try{
+    const r=await callFn({action:"price",sender:f.sender,recipient:f.recipient,packages:f.packages});
+    const prods=(r.consignments?.[0]?.products||[]).filter(p=>!p.errors?.length);
+    if(!prods.length){$("priceOut").innerHTML=`<pre>${esc(JSON.stringify(r,null,2))}</pre>`;return}
+    $("priceOut").innerHTML=`<div class="tbl"><table><thead><tr><th>Produkt</th><th>Pris eks. mva</th><th>Forventet levering</th></tr></thead><tbody>${prods.map(p=>{
+      const names={"5000":"Pakke til bedrift",BUSINESS_PARCEL:"Business Parcel (til dør)",PICKUP_PARCEL:"Pickup Parcel (hentested)"};
+      const pr=p.price?.listPrice?.priceWithoutAdditionalServices?.amountWithoutVAT||p.price?.netPrice?.priceWithoutAdditionalServices?.amountWithoutVAT;
+      return `<tr><td>${esc(names[p.id]||p.guiInformation?.displayName||p.id)}</td><td class="mono">${pr?nok(+pr):"avtalepris"}</td><td>${esc(p.expectedDelivery?.formattedExpectedDeliveryDate||p.expectedDelivery?.workingDays+" virkedager"||"")}</td></tr>`}).join("")}</tbody></table></div>`;
+  }catch(e){$("priceOut").innerHTML="";msg($("formMsg"),esc(e.message),"bad")}
+});
+
+$("shipForm").addEventListener("submit",async e=>{
+  e.preventDefault(); const f=readForm(); msg($("formMsg"),"");
+  if(f.intl&&(!f.customs.value_nok||!f.customs.hs_code)){msg($("formMsg"),"Sending ut av Norge krever verdi (NOK) og varekode for tolldeklarasjonen.","bad");return}
+  if(f.intl&&!f.recipient.eori){msg($("formMsg"),"Mottaker mangler EORI-nummer. Legg det inn i adresseboken før booking.","bad");return}
+  $("bookBtn").disabled=true;
+  try{
+    await saveDraft();
+    const r=await callFn({action:"book",sender:f.sender,recipient:f.recipient,packages:f.packages,customer_ref:f.customer_ref,customs:f.customs,shipping_date:f.shipping_date});
+    const c=r.consignments?.[0]; const conf=c?.confirmation;
+    if(!conf){throw new Error(c?.errors?.map(x=>x.message).join("; ")||"Bring returnerte ingen bekreftelse")}
+    const pkgNos=(conf.packages||[]).map(p=>p.packageNumber);
+    const label=conf.links?.labels||null;
+    await saveDraft("booked",{mybring_consignment_no:conf.consignmentNumber,mybring_package_nos:pkgNos,label_url:label,tracking_url:conf.links?.tracking||null,booked_at:new Date().toISOString()});
+    await sb.from("shipment_events").insert({shipment_id:editingShipment,source:"mybring",status:"booked",description:"Booket hos Bring",raw:r});
+    msg($("formMsg"),`Booket. Sendingsnr. <span class="mono">${esc(conf.consignmentNumber)}</span>${label?` · <a href="${esc(label)}" target="_blank" rel="noopener">Åpne etikett (PDF)</a>`:""}`,"ok");
+    toast("Sending booket"); editingShipment=null; loadShipments();
+  }catch(err){msg($("formMsg"),esc(err.message),"bad")}
+  finally{$("bookBtn").disabled=false}
+});
+
+async function checkApi(){
+  try{const r=await callFn({action:"status"});
+    $("apiStatus").innerHTML=`<span class="pill booked">Nøkkel OK</span> &nbsp; Testmodus: <b>${r.test_mode?"PÅ (ingen ekte booking)":"AV – ekte booking"}</b> · Kundenr.: ${r.customer_no==="set"?"satt":"<span style='color:var(--bad)'>mangler</span>"}`;
+    $("testFlag").textContent=r.test_mode?"Testmodus – booking sendes med testIndicator":"";
+  }catch(e){$("apiStatus").innerHTML=`<span class="pill failed">Ikke klar</span> &nbsp; ${esc(e.message)}`;$("testFlag").textContent="Mybring-nøkkel mangler – booking er ikke mulig ennå"}
+}
+$("recheck").addEventListener("click",checkApi);
+
+$("exportCsv").addEventListener("click",()=>{
+  const m=$("exp_month").value; const rows=shipments.filter(s=>s.booked_at&&(!m||s.booked_at.slice(0,7)===m));
+  const csv=["Dato;Ref;Til;Land;Kolli;Vekt kg;Sendingsnr;Pris NOK"].concat(rows.map(s=>[dt(s.booked_at),s.customer_ref||"",s.recipient?.label||"",s.recipient?.country_code||"",(s.packages||[]).length,(s.packages||[]).reduce((a,p)=>a+(+p.weight_kg||0),0),s.mybring_consignment_no||"",s.price_nok||""].join(";"))).join("\n");
+  $("csvOut").textContent=csv; $("csvOut").hidden=false; $("copyCsv").hidden=false;
+});
+$("copyCsv").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("csvOut").textContent);toast("Kopiert")}catch{const r=document.createRange();r.selectNodeContents($("csvOut"));getSelection().removeAllRanges();getSelection().addRange(r)}});
+
+fillShipmentForm(null);
+$("s_date").value=new Date(Date.now()+86400000).toISOString().slice(0,10);
+$("exp_month").value=new Date().toISOString().slice(0,7);
+sb.auth.onAuthStateChange((ev)=>{if(ev==="SIGNED_OUT")show("login")});
+boot();
+</script>
+</body></html>

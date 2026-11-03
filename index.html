@@ -189,6 +189,7 @@ pre{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
 <script>
 const SUPA_URL="https://tcuefkqomitykaknoyyn.supabase.co";
@@ -310,7 +311,7 @@ async function openShipment(id){
       <div><div class="note">Toll</div>${s.customs?`${esc(s.customs.contents)}<br>HS ${esc(s.customs.hs_code||"")} · ${s.customs.value_nok?nok(s.customs.value_nok):"verdi mangler"}`:"–"}</div>
       <div><div class="note">Serienr.</div><span class="mono">${esc((s.miner_serials||[]).join(", ")||"–")}</span></div>
       <div><div class="note">Sporing</div>${s.mybring_consignment_no?`<a class="mono" href="https://sporing.bring.no/sporing/${esc(s.mybring_consignment_no)}" target="_blank" rel="noopener">${esc(s.mybring_consignment_no)}</a>`:"–"}
-        ${s.label_url?` · <a href="${esc(s.label_url)}" target="_blank" rel="noopener">Etikett (PDF)</a>`:""}</div>
+        ${s.label_url?` · <button type="button" class="btn small" id="printD">Skriv ut etikett</button>`:""}</div>
     </div>
     <div class="row">
       ${s.status==="draft"?`<button class="btn primary" id="editD">Rediger / book</button><button class="btn" id="delD">Slett utkast</button>`:""}
@@ -320,6 +321,7 @@ async function openShipment(id){
   if($("editD")) $("editD").onclick=()=>{fillShipmentForm(s);show("ny")};
   if($("delD")) $("delD").onclick=async()=>{ if($("delD").dataset.sure!=="1"){$("delD").dataset.sure="1";$("delD").textContent="Trykk igjen for å slette";return}
     await sb.from("shipments").delete().eq("id",s.id); d.hidden=true; loadShipments(); toast("Utkast slettet")};
+  if($("printD")) $("printD").onclick=()=>printLabel(s.label_url,$("dMsg"));
   if($("trackD")) $("trackD").onclick=async()=>{
     msg($("dMsg"),"Henter …");
     try{const r=await callFn({action:"track",q:s.mybring_consignment_no});
@@ -402,11 +404,47 @@ $("shipForm").addEventListener("submit",async e=>{
     const label=conf.links?.labels||null;
     await saveDraft("booked",{mybring_consignment_no:conf.consignmentNumber,mybring_package_nos:pkgNos,label_url:label,tracking_url:conf.links?.tracking||null,booked_at:new Date().toISOString()});
     await sb.from("shipment_events").insert({shipment_id:editingShipment,source:"mybring",status:"booked",description:"Booket hos Bring",raw:r});
-    msg($("formMsg"),`Booket. Sendingsnr. <span class="mono">${esc(conf.consignmentNumber)}</span>${label?` · <a href="${esc(label)}" target="_blank" rel="noopener">Åpne etikett (PDF)</a>`:""}`,"ok");
+    msg($("formMsg"),`Booket. Sendingsnr. <span class="mono">${esc(conf.consignmentNumber)}</span>${label?` · <button type="button" class="btn small" id="printNew">Skriv ut etikett</button>`:""} · Lever pakken på nærmeste Post i butikk / Bring-innleveringssted.`,"ok");
+    if(label) $("printNew").onclick=()=>printLabel(label,$("formMsg"),true);
     toast("Sending booket"); editingShipment=null; loadShipments();
   }catch(err){msg($("formMsg"),esc(err.message),"bad")}
   finally{$("bookBtn").disabled=false}
 });
+
+async function printLabel(url,msgEl,keep){
+  const prev=keep?msgEl.innerHTML:"";
+  try{
+    msg(msgEl,"Henter etikett …");
+    const r=await callFn({action:"label",url});
+    const bytes=Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0));
+    const blob=new Blob([bytes],{type:"application/pdf"}); const blobUrl=URL.createObjectURL(blob);
+    // Render PDF-sidene til bilder og legg dem i 105×148 mm-bokser (¼ A4) på A4-ark
+    pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
+    const imgs=[];
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i); const vp=page.getViewport({scale:4});
+      const c=document.createElement("canvas"); c.width=vp.width; c.height=vp.height;
+      await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
+      imgs.push(c.toDataURL("image/png"));
+    }
+    const w=window.open("","_blank");
+    if(keep) msgEl.innerHTML=prev; else msg(msgEl,"");
+    if(!w){ msg(msgEl,`Nettleseren blokkerte popup. <a href="${blobUrl}" target="_blank" rel="noopener">Åpne PDF-en her</a>.`,"bad"); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etikett</title><style>
+      @page{size:A4 portrait;margin:0} html,body{margin:0;padding:0;background:#fff}
+      .sheet{width:210mm;height:297mm;position:relative;page-break-after:always}
+      .lbl{position:absolute;left:5mm;top:5mm;width:100mm;height:140mm;display:flex;align-items:flex-start;justify-content:flex-start}
+      .lbl img{max-width:100%;max-height:100%;object-fit:contain}
+      .cut{position:absolute;left:0;top:148.5mm;width:210mm;border-top:1px dashed #bbb}
+      .cut2{position:absolute;top:0;left:105mm;height:297mm;border-left:1px dashed #bbb}
+      @media screen{body{background:#888;padding:10mm}.sheet{background:#fff;margin:0 auto 10mm;box-shadow:0 2px 12px rgba(0,0,0,.4)}}
+      @media print{.cut,.cut2{display:none}}
+    </style></head><body>${imgs.map(src=>`<div class="sheet"><div class="lbl"><img src="${src}"></div><div class="cut"></div><div class="cut2"></div></div>`).join("")}
+    <script>window.onload=()=>setTimeout(()=>window.print(),400);<\/script></body></html>`);
+    w.document.close();
+  }catch(e){msg(msgEl,"Kunne ikke hente etikett: "+esc(e.message),"bad")}
+}
 
 async function checkApi(){
   try{const r=await callFn({action:"status"});

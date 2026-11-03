@@ -418,7 +418,7 @@ async function printLabel(url,msgEl,keep){
     const r=await callFn({action:"label",url});
     const bytes=Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0));
     const blob=new Blob([bytes],{type:"application/pdf"}); const blobUrl=URL.createObjectURL(blob);
-    // Render PDF-sidene til bilder og legg dem i 105×148 mm-bokser (¼ A4) på A4-ark
+    // Render PDF-sidene til bilder i naturlig størrelse (Bring-etikett 101,6×192 mm) øverst til venstre på A4
     pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
     const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
     const imgs=[];
@@ -434,10 +434,10 @@ async function printLabel(url,msgEl,keep){
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etikett</title><style>
       @page{size:A4 portrait;margin:0} html,body{margin:0;padding:0;background:#fff}
       .sheet{width:210mm;height:297mm;position:relative;page-break-after:always}
-      .lbl{position:absolute;left:5mm;top:5mm;width:100mm;height:140mm;display:flex;align-items:flex-start;justify-content:flex-start}
+      .lbl{position:absolute;left:4mm;top:4mm;width:102mm;height:192mm;display:flex;align-items:flex-start;justify-content:flex-start}
       .lbl img{max-width:100%;max-height:100%;object-fit:contain}
-      .cut{position:absolute;left:0;top:148.5mm;width:210mm;border-top:1px dashed #bbb}
-      .cut2{position:absolute;top:0;left:105mm;height:297mm;border-left:1px dashed #bbb}
+      .cut{position:absolute;left:0;top:200mm;width:210mm;border-top:1px dashed #bbb}
+      .cut2{position:absolute;top:0;left:110mm;height:297mm;border-left:1px dashed #bbb}
       @media screen{body{background:#888;padding:10mm}.sheet{background:#fff;margin:0 auto 10mm;box-shadow:0 2px 12px rgba(0,0,0,.4)}}
       @media print{.cut,.cut2{display:none}}
     </style></head><body>${imgs.map(src=>`<div class="sheet"><div class="lbl"><img src="${src}"></div><div class="cut"></div><div class="cut2"></div></div>`).join("")}

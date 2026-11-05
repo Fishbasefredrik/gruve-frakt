@@ -65,6 +65,17 @@ td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
 .kpi b{display:block;font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
 .kpi span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .login{max-width:380px;margin:60px auto}
+.lev{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.lev>div{border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px;align-content:start;min-width:0}
+.lev h3{font-size:15px}
+.lev .done{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,transparent)}
+.btn.big{padding:12px 16px;font-size:16px;font-weight:600;width:100%}
+.qrwrap{position:fixed;inset:0;z-index:30;background:#fff;color:#111;overflow:auto;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.qrwrap .in{max-width:520px;margin:0 auto;display:grid;gap:18px}
+.qrwrap figure{margin:0;display:grid;gap:6px;border-bottom:1px solid #ddd;padding-bottom:18px}
+.qrwrap figcaption{font:600 18px var(--sans)} .qrwrap figcaption span{font:500 13px var(--mono);color:#555;display:block}
+.qrwrap img{width:100%;height:auto;image-rendering:pixelated;background:#fff}
+.qrwrap .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .pkg{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));align-items:end}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:20}
 pre{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:10px;border-radius:6px;margin:0;max-height:260px;overflow:auto}
@@ -240,7 +251,9 @@ async function boot(){
   $("tabs").hidden=false;
   await Promise.all([loadAddresses(),loadShipments()]);
   const v=location.hash.slice(1);
+  const ref=v.startsWith("ref-")?decodeURIComponent(v.slice(4)):null;
   show($("v-"+v)&&v!=="login"?v:"sendinger");
+  if(ref){const m=shipments.find(x=>x.customer_ref===ref&&x.mybring_consignment_no)||shipments.find(x=>x.customer_ref===ref); if(m) openShipment(m.id); else toast("Fant ingen sending med ref. "+ref)}
   checkApi();
 }
 
@@ -313,6 +326,7 @@ async function openShipment(id){
       <div><div class="note">Sporing</div>${s.mybring_consignment_no?`<a class="mono" href="https://sporing.bring.no/sporing/${esc(s.mybring_consignment_no)}" target="_blank" rel="noopener">${esc(s.mybring_consignment_no)}</a>`:"–"}
         ${s.label_url?` · <button type="button" class="btn small" id="printD">Skriv ut etikett</button>`:""}</div>
     </div>
+    ${s.mybring_consignment_no?`<div class="stack"><h2>Levering</h2><div id="levering" class="note">Henter muligheter …</div></div>`:""}
     <div class="row">
       ${s.status==="draft"?`<button class="btn primary" id="editD">Rediger / book</button><button class="btn" id="delD">Slett utkast</button>`:""}
       ${s.mybring_consignment_no?`<button class="btn" id="trackD">Hent sporingsstatus</button>`:""}
@@ -333,6 +347,75 @@ async function openShipment(id){
     }catch(e){msg($("dMsg"),esc(e.message),"bad")}
   };
   d.scrollIntoView({behavior:"smooth"});
+  if(s.mybring_consignment_no) renderDelivery(s);
+}
+
+/* ---------- Levering: lever inn selv (QR) eller bestill henting ---------- */
+async function shipEvents(s){const {data}=await sb.from("shipment_events").select("*").eq("shipment_id",s.id).order("event_time");return data||[]}
+const fmtDay=d=>new Date(d+"T12:00:00").toLocaleDateString("nb-NO",{weekday:"long",day:"2-digit",month:"2-digit"});
+async function renderDelivery(s){
+  const box=$("levering"); if(!box) return;
+  const ev=await shipEvents(s);
+  const booked=ev.filter(e=>e.status==="booked").pop();
+  const qr=(booked?.raw?.consignments?.[0]?.confirmation?.packages||[]).map(p=>({n:p.packageNumber,url:p.qrCodeLink})).filter(p=>p.url);
+  const pk=ev.filter(e=>e.status==="pickup_ordered").pop();
+  const n=(s.packages||[]).length, kg=(s.packages||[]).reduce((a,p)=>a+(+p.weight_kg||0),0);
+  const snd=s.sender||{};
+  box.className="";
+  box.innerHTML=`<div class="lev">
+    <div><h3>Lever inn selv</h3>
+      <div class="note">${qr.length?"Vis QR-koden i butikken (Posten / Post i butikk). De skriver ut etiketten. Én kode per eske.":"Skriv ut etiketten, fest den på pakken og lever på Posten / Post i butikk."}</div>
+      ${qr.length?`<button class="btn primary big" id="qrBtn">Vis QR-koder (${qr.length})</button>`:""}
+      ${s.label_url?`<button class="btn" id="lblBtn">Skriv ut etikett</button>`:""}
+    </div>
+    <div id="pkBox"><h3>Bring henter på ${esc(snd.address_line||"")}</h3>
+      ${pk?`<div class="alert ok">Henting bestilt <b>${esc(fmtDay(pk.raw?.request?.pickupDate||""))}</b>${pk.raw?.pickupConfirmation?.isoFormattedEarliestPickupDateTime?` (${esc(pk.raw.pickupConfirmation.isoFormattedEarliestPickupDateTime.slice(11,16))}–${esc((pk.raw.pickupConfirmation.isoFormattedLatestPickupDateTime||"").slice(11,16))})`:""}, ${esc(pk.raw?.request?.pickupDetails?.packages?.count)} kolli.${pk.raw?.pickupConfirmation?.packageNumber?` Ref. <span class="mono">${esc(pk.raw.pickupConfirmation.packageNumber)}</span>`:""}${pk.raw?.pickupConfirmation?.url?` · <a href="${esc(pk.raw.pickupConfirmation.url)}" target="_blank" rel="noopener">Kvittering</a>`:""}</div>
+        <div class="note">Etikettene må være festet på eskene når sjåføren kommer. Endringer går via Bring kundeservice, tlf. 04045.</div>`
+      :`<div class="note">Etikettene må være skrevet ut og festet på eskene før sjåføren kommer.</div>
+        <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
+          <label class="f">Antall kolli<select id="pkCount">${Array.from({length:Math.max(n,1)},(_,i)=>`<option value="${i+1}" ${i+1===n?"selected":""}>${i+1}</option>`).join("")}</select></label>
+          <label class="f">Telefon til sjåfør<input id="pkPhone" type="tel" value="${esc(snd.phone||"")}" placeholder="+47 …"></label>
+        </div>
+        <button class="btn primary big" id="pkBtn" disabled>Sjekker hentedag …</button>
+        <div class="note" id="pkInfo"></div>`}
+    </div></div><div id="levMsg"></div>`;
+  if($("qrBtn")) $("qrBtn").onclick=()=>showQr(s,qr);
+  if($("lblBtn")) $("lblBtn").onclick=()=>printLabel(s.label_url,$("levMsg"));
+  if(pk||!$("pkBtn")) return;
+  let opt=null;
+  try{
+    const r=await callFn({action:"pickup_options",postal_code:snd.postal_code,country_code:snd.country_code||"NO",date:new Date().toISOString().slice(0,10)});
+    opt=(r.pickupOptions||[])[0]; const price=r.price;
+    if(!opt){$("pkBtn").textContent="Ingen hentedag tilgjengelig";$("pkInfo").textContent="Bring tilbyr ikke henting her nå. Lever inn selv.";return}
+    $("pkBtn").textContent=`Bestill henting ${fmtDay(opt.date)}${price?.amountWithoutVAT!=null?" · "+nok(price.amountWithoutVAT)+" eks. mva":""}`;
+    $("pkInfo").textContent=`Sjåføren kommer mellom ${String(opt.from||"").slice(0,5)} og ${String(opt.to||"").slice(0,5)}.`;
+    $("pkBtn").disabled=false;
+  }catch(e){$("pkBtn").textContent="Kunne ikke sjekke henting";msg($("levMsg"),esc(e.message),"bad");return}
+  $("pkBtn").onclick=async()=>{
+    const phone=$("pkPhone").value.trim(); if(!phone){$("pkPhone").focus();msg($("levMsg"),"Skriv inn telefonnummeret sjåføren kan ringe.","bad");return}
+    const count=+$("pkCount").value; $("pkBtn").disabled=true; $("pkBtn").textContent="Bestiller …"; msg($("levMsg"),"");
+    try{
+      const email=snd.email||(await session())?.user?.email;
+      const r=await callFn({action:"pickup",date:opt.date,street:snd.address_line,postal_code:snd.postal_code,city:snd.city,country_code:snd.country_code||"NO",
+        phone,email,contact:snd.contact||"",company:snd.name,count,weight_kg:Math.round(kg*count/Math.max(n,1)),
+        message:`${count} kolli, sending ${s.mybring_consignment_no}${s.customer_ref?" ("+s.customer_ref+")":""}`});
+      await sb.from("shipment_events").insert({shipment_id:s.id,source:"mybring",status:"pickup_ordered",description:`Henting bestilt ${opt.date}, ${count} kolli`,raw:r});
+      if(!snd.phone&&snd.id) await sb.from("addresses").update({phone}).eq("id",snd.id);
+      toast("Henting bestilt"); await loadShipments(); openShipment(s.id);
+    }catch(e){$("pkBtn").disabled=false;$("pkBtn").textContent="Prøv igjen";msg($("levMsg"),"Bring godtok ikke bestillingen: "+esc(e.message),"bad")}
+  };
+}
+async function showQr(s,qr){
+  const w=document.createElement("div"); w.className="qrwrap";
+  w.innerHTML=`<div class="in"><div class="top"><b>Sending ${esc(s.mybring_consignment_no)}</b><button class="btn" id="qrClose" style="background:#fff;color:#111">Lukk</button></div>
+    <div style="font-size:14px">Til ${esc(s.recipient?.name||"")}, ${esc(s.recipient?.city||"")}. Vis én kode per eske – butikken skriver ut etiketten.</div>
+    ${qr.map((q,i)=>`<figure><figcaption>Kolli ${i+1}/${qr.length}<span>${esc(q.n)}</span></figcaption><img alt="QR-kode kolli ${i+1}" data-i="${i}"></figure>`).join("")}</div>`;
+  document.body.appendChild(w); w.querySelector("#qrClose").onclick=()=>w.remove();
+  try{ if(navigator.wakeLock) await navigator.wakeLock.request("screen") }catch(_){}
+  for(const [i,q] of qr.entries()){
+    try{const r=await callFn({action:"label",url:q.url}); w.querySelector(`img[data-i="${i}"]`).src="data:"+(r.content_type||"image/png")+";base64,"+r.base64}
+    catch(e){w.querySelector(`img[data-i="${i}"]`).alt="Kunne ikke hente QR-kode: "+e.message}
+  }
 }
 
 function pkgRow(p={}){
@@ -397,16 +480,19 @@ $("shipForm").addEventListener("submit",async e=>{
   $("bookBtn").disabled=true;
   try{
     await saveDraft();
-    const r=await callFn({action:"book",sender:f.sender,recipient:f.recipient,packages:f.packages,customer_ref:f.customer_ref,customs:f.customs,shipping_date:f.shipping_date});
+    const dom=!f.intl; const sEmail=f.sender?.email||(await session())?.user?.email;
+    const r=await callFn({action:"book",sender:{...f.sender,email:sEmail},recipient:f.recipient,packages:f.packages,customer_ref:f.customer_ref,customs:f.customs,shipping_date:f.shipping_date,
+      ...(dom?{product_id:"9000",qr:true}:{})}); // innenlands: Retur pakke fra bedrift gir QR-kode for innlevering, og kan også hentes
     const c=r.consignments?.[0]; const conf=c?.confirmation;
     if(!conf){throw new Error(c?.errors?.map(x=>x.message).join("; ")||"Bring returnerte ingen bekreftelse")}
     const pkgNos=(conf.packages||[]).map(p=>p.packageNumber);
     const label=conf.links?.labels||null;
     await saveDraft("booked",{mybring_consignment_no:conf.consignmentNumber,mybring_package_nos:pkgNos,label_url:label,tracking_url:conf.links?.tracking||null,booked_at:new Date().toISOString()});
     await sb.from("shipment_events").insert({shipment_id:editingShipment,source:"mybring",status:"booked",description:"Booket hos Bring",raw:r});
-    msg($("formMsg"),`Booket. Sendingsnr. <span class="mono">${esc(conf.consignmentNumber)}</span>${label?` · <button type="button" class="btn small" id="printNew">Skriv ut etikett</button>`:""} · Lever pakken på nærmeste Post i butikk / Bring-innleveringssted.`,"ok");
-    if(label) $("printNew").onclick=()=>printLabel(label,$("formMsg"),true);
-    toast("Sending booket"); editingShipment=null; loadShipments();
+    const newId=editingShipment;
+    msg($("formMsg"),`Booket. Sendingsnr. <span class="mono">${esc(conf.consignmentNumber)}</span> · Velg levering: <button type="button" class="btn small primary" id="openNew">Lever inn (QR) eller bestill henting</button>`,"ok");
+    toast("Sending booket"); editingShipment=null; await loadShipments();
+    $("openNew").onclick=()=>{show("sendinger");openShipment(newId)};
   }catch(err){msg($("formMsg"),esc(err.message),"bad")}
   finally{$("bookBtn").disabled=false}
 });

@@ -352,6 +352,7 @@ async function openShipment(id){
 
 /* ---------- Levering: lever inn selv (QR) eller bestill henting ---------- */
 async function shipEvents(s){const {data}=await sb.from("shipment_events").select("*").eq("shipment_id",s.id).order("event_time");return data||[]}
+const osloTime=t=>t?new Date(t).toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Oslo"}):"";
 const fmtDay=d=>new Date(d+"T12:00:00").toLocaleDateString("nb-NO",{weekday:"long",day:"2-digit",month:"2-digit"});
 async function renderDelivery(s){
   const box=$("levering"); if(!box) return;
@@ -369,7 +370,7 @@ async function renderDelivery(s){
       ${s.label_url?`<button class="btn" id="lblBtn">Skriv ut etikett</button>`:""}
     </div>
     <div id="pkBox"><h3>Bring henter på ${esc(snd.address_line||"")}</h3>
-      ${pk?`<div class="alert ok">Henting bestilt <b>${esc(fmtDay(pk.raw?.request?.pickupDate||""))}</b>${pk.raw?.pickupConfirmation?.isoFormattedEarliestPickupDateTime?` (${esc(pk.raw.pickupConfirmation.isoFormattedEarliestPickupDateTime.slice(11,16))}–${esc((pk.raw.pickupConfirmation.isoFormattedLatestPickupDateTime||"").slice(11,16))})`:""}, ${esc(pk.raw?.request?.pickupDetails?.packages?.count)} kolli.${pk.raw?.pickupConfirmation?.packageNumber?` Ref. <span class="mono">${esc(pk.raw.pickupConfirmation.packageNumber)}</span>`:""}${pk.raw?.pickupConfirmation?.url?` · <a href="${esc(pk.raw.pickupConfirmation.url)}" target="_blank" rel="noopener">Kvittering</a>`:""}</div>
+      ${pk?`<div class="alert ok">Henting bestilt <b>${esc(fmtDay(pk.raw?.request?.pickupDate||""))}</b>${pk.raw?.pickupConfirmation?.isoFormattedEarliestPickupDateTime?` (${esc(osloTime(pk.raw.pickupConfirmation.isoFormattedEarliestPickupDateTime))}–${esc(osloTime(pk.raw.pickupConfirmation.isoFormattedLatestPickupDateTime))})`:""}, ${esc(pk.raw?.request?.pickupDetails?.packages?.count)} kolli.${pk.raw?.pickupConfirmation?.packageNumber?` Ref. <span class="mono">${esc(pk.raw.pickupConfirmation.packageNumber)}</span>`:""}${pk.raw?.pickupConfirmation?.url?` · <a href="${esc(pk.raw.pickupConfirmation.url)}" target="_blank" rel="noopener">Kvittering</a>`:""}</div>
         <div class="note">Etikettene må være festet på eskene når sjåføren kommer. Endringer går via Bring kundeservice, tlf. 04045.</div>`
       :`<div class="note">Etikettene må være skrevet ut og festet på eskene før sjåføren kommer.</div>
         <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
@@ -400,7 +401,7 @@ async function renderDelivery(s){
         phone,email,contact:snd.contact||"",company:snd.name,count,weight_kg:Math.round(kg*count/Math.max(n,1)),
         message:`${count} kolli, sending ${s.mybring_consignment_no}${s.customer_ref?" ("+s.customer_ref+")":""}`});
       await sb.from("shipment_events").insert({shipment_id:s.id,source:"mybring",status:"pickup_ordered",description:`Henting bestilt ${opt.date}, ${count} kolli`,raw:r});
-      if(!snd.phone&&snd.id) await sb.from("addresses").update({phone}).eq("id",snd.id);
+      if(snd.id&&phone!==snd.phone) await sb.from("addresses").update({phone}).eq("id",snd.id);
       toast("Henting bestilt"); await loadShipments(); openShipment(s.id);
     }catch(e){$("pkBtn").disabled=false;$("pkBtn").textContent="Prøv igjen";msg($("levMsg"),"Bring godtok ikke bestillingen: "+esc(e.message),"bad")}
   };

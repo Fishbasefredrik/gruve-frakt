@@ -213,6 +213,7 @@ let addresses=[],shipments=[],editingShipment=null;
 const nok=n=>n==null?"–":new Intl.NumberFormat("nb-NO",{style:"currency",currency:"NOK",maximumFractionDigits:0}).format(n);
 const dt=s=>s?new Date(s).toLocaleDateString("nb-NO",{day:"2-digit",month:"2-digit",year:"2-digit"}):"";
 const statusNo={draft:"Utkast",booked:"Booket",in_transit:"Underveis",delivered:"Levert",failed:"Feilet"};
+const serviceNo={parcel_business:"Pakke til bedrift",parcel_business_international:"Business Parcel (utland)",return_business_parcel_9000:"Returpakke til bedrift + QR"};
 function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 function msg(el,text,kind){el.innerHTML=text?`<div class="alert ${kind||""}">${text}</div>`:""}
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
@@ -330,13 +331,14 @@ async function openShipment(id){
     ${s.mybring_consignment_no?`<div class="stack"><h2>Levering</h2><div id="levering" class="note">Henter muligheter …</div></div>`:""}
     <div class="row">
       ${s.status==="draft"?`<button class="btn primary" id="editD">Rediger / book</button><button class="btn" id="delD">Slett utkast</button>`:""}
-      ${s.mybring_consignment_no?`<button class="btn" id="trackD">Hent sporingsstatus</button>`:""}
-    </div><div id="dMsg"></div><div id="trackOut"></div>`;
+      ${s.mybring_consignment_no?`<button class="btn" id="trackD">Hent sporingsstatus</button><button class="btn" id="qrD">Vis QR-kode</button>`:""}
+    </div><div id="dMsg"></div><div id="qrOut"></div><div id="trackOut"></div>`;
   $("closeD").onclick=()=>{d.hidden=true};
   if($("editD")) $("editD").onclick=()=>{fillShipmentForm(s);show("ny")};
   if($("delD")) $("delD").onclick=async()=>{ if($("delD").dataset.sure!=="1"){$("delD").dataset.sure="1";$("delD").textContent="Trykk igjen for å slette";return}
     await sb.from("shipments").delete().eq("id",s.id); d.hidden=true; loadShipments(); toast("Utkast slettet")};
   if($("printD")) $("printD").onclick=()=>printLabel(s.label_url,$("dMsg"));
+  if($("qrD")) $("qrD").onclick=()=>showQr(s,$("dMsg"),$("qrOut"));
   if($("trackD")) $("trackD").onclick=async()=>{
     msg($("dMsg"),"Henter …");
     try{const r=await callFn({action:"track",q:s.mybring_consignment_no});
@@ -552,6 +554,20 @@ async function printLabel(url,msgEl,keep){
     <script>window.onload=()=>setTimeout(()=>window.print(),400);<\/script></body></html>`);
     w.document.close();
   }catch(e){msg(msgEl,"Kunne ikke hente etikett: "+esc(e.message),"bad")}
+}
+
+async function showQr(s,msgEl,outEl){
+  try{
+    msg(msgEl,"Henter QR-kode …");
+    const {data:ev}=await sb.from("shipment_events").select("raw").eq("shipment_id",s.id).order("event_time",{ascending:false});
+    let links=[];
+    for(const e of (ev||[])){ for(const c of (e.raw?.consignments||[])){ for(const p of (c.confirmation?.packages||[])){ if(p.qrCodeLink) links.push({no:p.packageNumber,url:p.qrCodeLink}); } } if(links.length) break; }
+    if(!links.length){ msg(msgEl,"Denne sendingen ble booket uten QR-kode. Bruk «Skriv ut etikett».","bad"); return; }
+    const imgs=[];
+    for(const l of links){ const r=await callFn({action:"label",url:l.url}); imgs.push(`<div style="text-align:center;padding:12px;background:#fff;border-radius:8px;display:inline-block"><img src="data:${r.content_type||"image/png"};base64,${r.base64}" alt="QR" style="width:min(70vw,320px);height:auto;display:block"><div class="mono" style="color:#000;margin-top:6px">${esc(l.no)}</div></div>`); }
+    outEl.innerHTML=`<div class="note" style="margin-bottom:8px">Vis QR-koden i Post i butikk / Bring-innleveringssted – de skriver ut etiketten. Ingen etikett trengs på pakken.</div><div class="row">${imgs.join("")}</div>`;
+    msg(msgEl,"");
+  }catch(e){msg(msgEl,"Kunne ikke hente QR-kode: "+esc(e.message),"bad")}
 }
 
 async function checkApi(){

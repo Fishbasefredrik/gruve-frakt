@@ -250,10 +250,11 @@ async function boot(){
   if(!s){show("login");$("tabs").hidden=true;return}
   $("tabs").hidden=false;
   await Promise.all([loadAddresses(),loadShipments()]);
-  const v=location.hash.slice(1);
+  const h=location.hash.slice(1),hi=h.indexOf("&"),v=hi<0?h:h.slice(0,hi),q=new URLSearchParams(hi<0?"":h.slice(hi+1));
   const ref=v.startsWith("ref-")?decodeURIComponent(v.slice(4)):null;
   show($("v-"+v)&&v!=="login"?v:"sendinger");
-  if(ref){const m=shipments.find(x=>x.customer_ref===ref&&x.mybring_consignment_no)||shipments.find(x=>x.customer_ref===ref); if(m) openShipment(m.id); else toast("Fant ingen sending med ref. "+ref)}
+  if(ref){const m=shipments.find(x=>x.customer_ref===ref&&x.mybring_consignment_no)||shipments.find(x=>x.customer_ref===ref);
+    if(m) openShipment(m.id); else if(q.has("d")||q.has("n")) prefillFromGruva(ref,q); else toast("Fant ingen sending med ref. "+ref)}
   checkApi();
 }
 
@@ -350,6 +351,22 @@ async function openShipment(id){
   if(s.mybring_consignment_no) renderDelivery(s);
 }
 
+/* ---------- Fra Gruva: ny sending fylt ut fra arbeidsordren ---------- */
+const GRUVA_URL="https://claude.ai/artifact/M6LAm3mqYrqu4SPszWraYx";
+function prefillFromGruva(ref,q){
+  fillShipmentForm(null);
+  const to=(q.get("to")||"bardufoss").toLowerCase();
+  const rcp=addresses.find(a=>a.kind==="recipient"&&(a.city||"").toLowerCase().includes(to))||addresses.find(a=>a.kind==="recipient"&&(a.label+" "+a.name).toLowerCase().includes(to));
+  if(rcp) $("s_recipient").value=rcp.id;
+  $("s_ref").value=ref; $("s_serials").value=q.get("sn")||"";
+  $("s_date").value=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  const what=(q.get("d")||"").split("|").map(x=>x.trim()).filter(Boolean), n=Math.max(+q.get("n")||0,what.length,1);
+  $("pkgs").innerHTML="";
+  for(let i=0;i<n;i++) pkgRow({weight_kg:18,length_cm:58,width_cm:34,height_cm:44,description:(what[i]||"ASIC bitcoin miner").slice(0,60)});
+  toggleCustoms(); show("ny");
+  msg($("formMsg"),`Fylt ut fra Gruva (${esc(ref)}): ${n} kolli${rcp?" til "+esc(rcp.label):""}. Sjekk vekt og mål, og trykk «Book hos Bring». Etterpå kan du vise QR-koder eller bestille henting.`);
+}
+
 /* ---------- Levering: lever inn selv (QR) eller bestill henting ---------- */
 async function shipEvents(s){const {data}=await sb.from("shipment_events").select("*").eq("shipment_id",s.id).order("event_time");return data||[]}
 const osloTime=t=>t?new Date(t).toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Oslo"}):"";
@@ -360,6 +377,7 @@ async function renderDelivery(s){
   const booked=ev.filter(e=>e.status==="booked").pop();
   const qr=(booked?.raw?.consignments?.[0]?.confirmation?.packages||[]).map(p=>({n:p.packageNumber,url:p.qrCodeLink})).filter(p=>p.url);
   const pk=ev.filter(e=>e.status==="pickup_ordered").pop();
+  const pkgNos=(booked?.raw?.consignments?.[0]?.confirmation?.packages||[]).map(p=>p.packageNumber).filter(Boolean);
   const n=(s.packages||[]).length, kg=(s.packages||[]).reduce((a,p)=>a+(+p.weight_kg||0),0);
   const snd=s.sender||{};
   box.className="";
@@ -379,7 +397,10 @@ async function renderDelivery(s){
         </div>
         <button class="btn primary big" id="pkBtn" disabled>Sjekker hentedag …</button>
         <div class="note" id="pkInfo"></div>`}
-    </div></div><div id="levMsg"></div>`;
+    </div></div>
+    ${/^LEI-/i.test(s.customer_ref||"")&&pkgNos.length?`<div class="row" style="margin-top:10px"><button class="btn" id="toGruva">Kopier kollinumre til Gruva (${pkgNos.length})</button><a href="${GRUVA_URL}" target="_blank" rel="noopener">Åpne Gruva ↗</a><span class="note">Lim inn i første kollinummer-felt på ${esc(s.customer_ref)} – de fordeles på alle kolliene.</span></div>`:""}
+    <div id="levMsg"></div>`;
+  if($("toGruva")) $("toGruva").onclick=async()=>{const t=pkgNos.join("\n");try{await navigator.clipboard.writeText(t);toast("Kollinumrene er kopiert")}catch{msg($("levMsg"),`<pre class="mono">${esc(t)}</pre>`)}};
   if($("qrBtn")) $("qrBtn").onclick=()=>showQr(s,qr);
   if($("lblBtn")) $("lblBtn").onclick=()=>printLabel(s.label_url,$("levMsg"));
   if(pk||!$("pkBtn")) return;

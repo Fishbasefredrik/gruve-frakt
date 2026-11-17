@@ -444,10 +444,10 @@ async function showQr(s,qr){
 
 function pkgRow(p={}){
   const div=document.createElement("div");div.className="pkg";
-  div.innerHTML=`<label class="f">Vekt kg<input type="number" step="0.1" min="0.1" class="w" value="${p.weight_kg??17}" required></label>
-    <label class="f">L cm<input type="number" min="1" class="l" value="${p.length_cm??50}" required></label>
-    <label class="f">B cm<input type="number" min="1" class="b" value="${p.width_cm??35}" required></label>
-    <label class="f">H cm<input type="number" min="1" class="h" value="${p.height_cm??40}" required></label>
+  div.innerHTML=`<label class="f">Vekt kg<input type="number" step="0.1" min="0.1" class="w" value="${p.weight_kg??19.8}" required></label>
+    <label class="f">L cm<input type="number" min="1" class="l" value="${p.length_cm??62}" required></label>
+    <label class="f">B cm<input type="number" min="1" class="b" value="${p.width_cm??44}" required></label>
+    <label class="f">H cm<input type="number" min="1" class="h" value="${p.height_cm??33}" required></label>
     <label class="f">Innhold<input class="d" value="${esc(p.description||"ASIC bitcoin miner")}"></label>
     <button type="button" class="btn small rm">Fjern</button>`;
   div.querySelector(".rm").onclick=()=>{if($("pkgs").children.length>1)div.remove()};
